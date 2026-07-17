@@ -117,12 +117,19 @@
 **Dependencies**: Phase 3 complete  
 **Estimated Time**: 1 hour
 
-#### Task 4.1: Create Evaluation Script
-- [ ] Create `src/poc_evaluation.py`
-- [ ] Implement test runner for all 4 redactors
-- [ ] Add metrics calculation
-- [ ] Add per-category breakdown
-- [ ] Generate visualizations
+#### Task 4.1: Create Evaluation Script ✅
+- [x] Create `src/poc_evaluation.py`
+- [x] Implement test runner for all 4 redactors
+- [x] Add metrics calculation (entity counts, timing)
+- [x] Add per-category breakdown
+- [x] Generate comparison report
+
+**Features**:
+- Tests all available redactors (Regex, NER, Presidio, Hybrid)
+- Processes test documents and times execution
+- Generates redacted samples
+- Creates comparison report (markdown)
+- Exports results as JSON
 
 **Commit**:
 - [ ] `feat(evaluation): add POC evaluation script`
