@@ -157,17 +157,17 @@ class DocumentHandler:
         for i in range(num_parts):
             new_doc = Document()
             
-            # Copy styles from original
-            new_doc.styles = doc.styles
-            
             start_idx = i * paras_per_part
             end_idx = start_idx + paras_per_part if i < num_parts - 1 else total_paragraphs
             
             # Copy paragraphs
             for para in doc.paragraphs[start_idx:end_idx]:
-                new_para = new_doc.add_paragraph()
-                new_para.text = para.text
-                new_para.style = para.style
+                new_para = new_doc.add_paragraph(para.text)
+                # Try to preserve basic formatting
+                try:
+                    new_para.style = para.style
+                except:
+                    pass  # Skip if style can't be applied
             
             # Save part
             output_path = os.path.join(output_dir, f"part_{i+1}.docx")
