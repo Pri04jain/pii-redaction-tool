@@ -17,27 +17,32 @@ except ImportError:
     PatternRecognizer = None
 
 
-class IndianPhoneRecognizer(PatternRecognizer):
-    """Custom recognizer for Indian phone numbers"""
-    
-    def __init__(self):
-        patterns = [
-            Pattern(
-                name="indian_phone_with_plus",
-                regex=r"\+91[\s-]?[6-9]\d{9}",
-                score=0.85
-            ),
-            Pattern(
-                name="indian_phone_without_plus",
-                regex=r"(?:0091|91)?[\s-]?[6-9]\d{9}",
-                score=0.75
-            ),
-        ]
-        super().__init__(
-            supported_entity="INDIAN_PHONE_NUMBER",
-            patterns=patterns,
-            name="IndianPhoneRecognizer"
-        )
+# Only define IndianPhoneRecognizer if Presidio is available
+if PRESIDIO_AVAILABLE:
+    class IndianPhoneRecognizer(PatternRecognizer):
+        """Custom recognizer for Indian phone numbers"""
+        
+        def __init__(self):
+            patterns = [
+                Pattern(
+                    name="indian_phone_with_plus",
+                    regex=r"\+91[\s-]?[6-9]\d{9}",
+                    score=0.85
+                ),
+                Pattern(
+                    name="indian_phone_without_plus",
+                    regex=r"(?:0091|91)?[\s-]?[6-9]\d{9}",
+                    score=0.75
+                ),
+            ]
+            super().__init__(
+                supported_entity="INDIAN_PHONE_NUMBER",
+                patterns=patterns,
+                name="IndianPhoneRecognizer"
+            )
+else:
+    # Placeholder when Presidio is not available
+    IndianPhoneRecognizer = None
 
 
 class PresidioRedactor(BaseRedactor):
