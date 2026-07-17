@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Test Files
+tests/test_data/*.docx
+tests/ground_truth/*.json
+*.log
+
+# Output Files
+output/
+temp/
+uploads/
+downloads/
+
+# Models (large files)
+models/
+*.model
+
+# Evaluation
+evaluation/*.png
+evaluation/*.jpg
+evaluation/*.json
+evaluation/*.csv
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Assignment Documentation (keep private)
+REQUIREMENTS.md
+Enterprise Data - Assignment.txt
+Red Herring Prospectus.docx
+*.pdf
+
+# Internal docs (keep in repo)
+!docs/**/*.md

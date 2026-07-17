@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PII Redaction Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+        }
+        
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: none;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-weight: 700;
+            font-size: 2.5rem;
+        }
+        
+        .upload-area {
+            border: 3px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: #f8fafc;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: #f1f5f9;
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--secondary-color);
+            background: #ecfdf5;
+        }
+        
+        .file-icon {
+            font-size: 4rem;
+            color: #94a3b8;
+            margin-bottom: 20px;
+        }
+        
+        .mode-selector {
+            margin: 20px 0;
+        }
+        
+        .mode-card {
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .mode-card:hover {
+            border-color: var(--primary-color);
+            background: #f8fafc;
+        }
+        
+        .mode-card.selected {
+            border-color: var(--primary-color);
+            background: #eef2ff;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            border: none;
+            padding: 12px 40px;
+            font-weight: 600;
+            border-radius: 8px;
+        }
+        
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        
+        .pii-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            margin: 5px;
+            border-radius: 20px;
+            background: #f0f9ff;
+            color: #0369a1;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-shield-alt"></i> PII Redaction Tool</h1>
+            <p class="lead">Automatically detect and redact sensitive information from documents</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-body p-4">
+                <div id="uploadSection">
+                    <h4 class="mb-4">Upload Document</h4>
+                    
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt file-icon"></i>
+                        <h5>Drag & drop your DOCX file here</h5>
+                        <p class="text-muted">or click to browse</p>
+                        <input type="file" id="fileInput" accept=".docx" style="display: none;">
+                        <p class="text-muted mt-2"><small>Maximum file size: 50MB</small></p>
+                    </div>
+                    
+                    <div id="fileInfo" class="alert alert-info mt-3" style="display: none;">
+                        <i class="fas fa-file-word"></i> <strong id="fileName"></strong>
+                        <button class="btn btn-sm btn-outline-secondary float-end" onclick="clearFile()">
+                            <i class="fas fa-times"></i> Remove
+                        </button>
+                    </div>
+                    
+                    <div class="mode-selector">
+                        <h5 class="mb-3">Select Redaction Mode</h5>
+                        <div id="modeOptions">
+                            <div class="mode-card" data-mode="hybrid">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1"><i class="fas fa-star text-warning"></i> Hybrid (Recommended)</h6>
+                                        <p class="text-muted mb-0 small">Best combination of all approaches</p>
+                                    </div>
+                                    <span class="badge bg-warning text-dark">Most Accurate</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mode-card" data-mode="presidio">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1"><i class="fas fa-robot"></i> Presidio</h6>
+                                        <p class="text-muted mb-0 small">Microsoft's comprehensive PII detection</p>
+                                    </div>
+                                    <span class="badge bg-info">Medium</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mode-card" data-mode="ner">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1"><i class="fas fa-brain"></i> NER (spaCy)</h6>
+                                        <p class="text-muted mb-0 small">Context-aware named entity recognition</p>
+                                    </div>
+                                    <span class="badge bg-success">Fast</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mode-card" data-mode="regex">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1"><i class="fas fa-lightning-bolt"></i> Regex-Based</h6>
+                                        <p class="text-muted mb-0 small">Fast pattern matching for structured data</p>
+                                    </div>
+                                    <span class="badge bg-primary">Fastest</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button class="btn btn-primary btn-lg" id="redactBtn" onclick="startRedaction()" disabled>
+                            <i class="fas fa-lock"></i> Redact Document
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="processingSection" style="display: none;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <h5 class="mt-3">Processing your document...</h5>
+                        <p class="text-muted">This may take a few moments</p>
+                    </div>
+                </div>
+                
+                <div id="resultsSection" style="display: none;">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3">Redaction Complete!</h4>
+                    </div>
+                    
+                    <div class="stats-card">
+                        <h5 class="mb-3"><i class="fas fa-chart-bar"></i> Redaction Statistics</h5>
+                        <div id="statsContent"></div>
+                        <h4 class="mt-3">Total Redactions: <span id="totalRedactions">0</span></h4>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button class="btn btn-success btn-lg me-2" onclick="downloadFile()">
+                            <i class="fas fa-download"></i> Download Redacted Document
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="resetForm()">
+                            <i class="fas fa-redo"></i> Redact Another
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5><i class="fas fa-shield-virus"></i> Protected PII Types</h5>
+                <div class="mt-3">
+                    <span class="pii-badge"><i class="fas fa-user"></i> Names</span>
+                    <span class="pii-badge"><i class="fas fa-envelope"></i> Emails</span>
+                    <span class="pii-badge"><i class="fas fa-phone"></i> Phone Numbers</span>
+                    <span class="pii-badge"><i class="fas fa-building"></i> Companies</span>
+                    <span class="pii-badge"><i class="fas fa-map-marker-alt"></i> Addresses</span>
+                    <span class="pii-badge"><i class="fas fa-id-card"></i> SSN</span>
+                    <span class="pii-badge"><i class="fas fa-credit-card"></i> Credit Cards</span>
+                    <span class="pii-badge"><i class="fas fa-birthday-cake"></i> Date of Birth</span>
+                    <span class="pii-badge"><i class="fas fa-network-wired"></i> IP Addresses</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let selectedFile = null;
+        let selectedMode = 'hybrid';
+        let resultFilename = null;
+        
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        function handleFile(file) {
+            if (!file.name.endsWith('.docx')) {
+                alert('Please upload a DOCX file');
+                return;
+            }
+            
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('redactBtn').disabled = false;
+        }
+        
+        function clearFile() {
+            selectedFile = null;
+            fileInput.value = '';
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('redactBtn').disabled = true;
+        }
+        
+        // Mode selection
+        document.querySelectorAll('.mode-card').forEach(card => {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedMode = this.dataset.mode;
+            });
+        });
+        
+        // Set default mode
+        document.querySelector('[data-mode="hybrid"]').classList.add('selected');
+        
+        async function startRedaction() {
+            if (!selectedFile) return;
+            
+            // Show processing section
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('processingSection').style.display = 'block';
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('mode', selectedMode);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultFilename = data.filename;
+                    displayResults(data);
+                } else {
+                    throw new Error(data.error || 'Redaction failed');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                resetForm();
+            }
+        }
+        
+        function displayResults(data) {
+            document.getElementById('processingSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Display statistics
+            let statsHTML = '';
+            for (const [type, count] of Object.entries(data.stats)) {
+                statsHTML += `
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>${type}:</span>
+                        <strong>${count}</strong>
+                    </div>
+                `;
+            }
+            document.getElementById('statsContent').innerHTML = statsHTML;
+            document.getElementById('totalRedactions').textContent = data.total_redactions;
+        }
+        
+        function downloadFile() {
+            if (resultFilename) {
+                window.location.href = `/download/${resultFilename}`;
+            }
+        }
+        
+        function resetForm() {
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('processingSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            clearFile();
+            resultFilename = null;
+        }
+    </script>
+</body>
+</html>
