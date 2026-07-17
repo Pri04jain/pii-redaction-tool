@@ -54,6 +54,12 @@ class PIIPatterns:
         r'\b\d{6}\b',  # Indian PIN code (with context)
     ]
     
+    # Organization/Company patterns (basic keyword-based)
+    ORGANIZATION_PATTERNS = [
+        r'\b[A-Z][A-Za-z\s&]+(?:Corporation|Corp\.?|Company|Co\.?|Incorporated|Inc\.?|Limited|Ltd\.?|LLC|LLP)\b',
+        r'\b[A-Z][A-Za-z\s&]+(?:Bank|Insurance|Technologies|Tech|Solutions|Services|Group|Holdings|Partners)\b',
+    ]
+    
     @classmethod
     def compile_patterns(cls):
         """Compile all patterns for efficient matching"""
@@ -66,6 +72,7 @@ class PIIPatterns:
             "dob": [re.compile(p, re.IGNORECASE) for p in cls.DOB_PATTERNS],
             "address": [re.compile(p, re.IGNORECASE) for p in cls.ADDRESS_PATTERNS],
             "zip": [re.compile(p) for p in cls.ZIP_PATTERNS],
+            "organization": [re.compile(p) for p in cls.ORGANIZATION_PATTERNS],
         }
     
     @staticmethod

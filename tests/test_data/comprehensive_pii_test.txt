@@ -1,0 +1,54 @@
+COMPREHENSIVE PII TEST DOCUMENT
+================================
+
+This document contains examples of all 9 required PII types for testing.
+
+1. FULL NAMES:
+   - John Smith is the CEO
+   - Sarah Johnson handles customer support
+   - Dr. Michael Brown reviewed the case
+
+2. EMAIL ADDRESSES:
+   - Contact us at: john.smith@example.com
+   - Support email: sarah.j@company.org
+   - Sales inquiries: info@business.net
+
+3. PHONE NUMBERS:
+   - Office: (555) 123-4567
+   - Mobile: +1-555-987-6543
+   - India: +91 9876543210
+   - Direct: 555.234.5678
+
+4. COMPANY NAMES:
+   - Acme Corporation handles the distribution
+   - Microsoft Corporation provided the software
+   - Goldman Sachs manages our investments
+   - Tech Innovations LLC is our partner
+
+5. PHYSICAL ADDRESSES:
+   - Head Office: 123 Main Street, Suite 400, New York, NY 10001
+   - Branch: 456 Oak Avenue, San Francisco, CA 94102
+   - PO Box: P.O. Box 789, Boston, MA 02101
+
+6. SOCIAL SECURITY NUMBERS:
+   - Employee SSN: 123-45-6789
+   - Contractor SSN: 987-65-4321
+   - Applicant SSN: 456 78 9012
+
+7. CREDIT CARD NUMBERS:
+   - Visa: 4532-1488-0343-6467
+   - Mastercard: 5425-2334-3010-9903
+   - Amex: 3782 822463 10005
+
+8. DATES OF BIRTH:
+   - Born: March 15, 1985
+   - DOB: 07/22/1990
+   - Birth Date: 1978-12-05
+
+9. IP ADDRESSES:
+   - Server IP: 192.168.1.100
+   - Gateway: 10.0.0.1
+   - Public: 203.0.113.45
+   - DNS: 8.8.8.8
+
+END OF TEST DOCUMENT

@@ -54,6 +54,9 @@ class RegexRedactor(BaseRedactor):
         # Detect addresses
         entities.extend(self._detect_addresses(text))
         
+        # Detect organizations/company names
+        entities.extend(self._detect_organizations(text))
+        
         # Handle overlapping matches - choose longest match
         entities = self._resolve_overlaps(entities)
         
@@ -223,6 +226,31 @@ class RegexRedactor(BaseRedactor):
                 entities.append(PIIEntity(
                     text=address_text,
                     type="address",
+                    start=match.start(),
+                    end=match.end(),
+                    confidence=confidence
+                ))
+        
+        return entities
+    
+    def _detect_organizations(self, text: str) -> List[PIIEntity]:
+        """Detect organization/company names"""
+        entities = []
+        
+        for pattern in self.compiled_patterns["organization"]:
+            for match in pattern.finditer(text):
+                org_text = match.group()
+                
+                # Medium confidence for organization names (can have false positives)
+                confidence = 0.70
+                
+                # Higher confidence for explicit legal entities
+                if any(suffix in org_text for suffix in ['LLC', 'Inc.', 'Corp.', 'Ltd.', 'Incorporated', 'Corporation', 'Limited']):
+                    confidence = 0.85
+                
+                entities.append(PIIEntity(
+                    text=org_text,
+                    type="organization",
                     start=match.start(),
                     end=match.end(),
                     confidence=confidence
