@@ -1,7 +1,9 @@
 # POC Evaluation Analysis - PII Redaction Tool
 
 **Generated**: 2026-07-17  
-**Dataset**: Red Herring Prospectus (2 test files, ~26 pages)
+**Dataset**: Red Herring Prospectus (2 test files, ~26 pages)  
+**🚀 Live Demo**: https://web-production-7fc74.up.railway.app  
+**📦 GitHub**: https://github.com/Pri04jain/pii-redaction-tool
 
 ---
 

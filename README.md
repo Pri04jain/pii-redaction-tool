@@ -2,6 +2,12 @@
 
 A comprehensive tool for detecting and redacting Personally Identifiable Information (PII) from DOCX documents using multiple detection approaches.
 
+🚀 **Live Demo**: https://web-production-7fc74.up.railway.app  
+📦 **GitHub**: https://github.com/Pri04jain/pii-redaction-tool  
+📊 **Evaluation**: See [POC_ANALYSIS.md](evaluation/POC_ANALYSIS.md)
+
+---
+
 ## 🎯 Project Overview
 
 This tool automatically detects and replaces sensitive information in documents with realistic fake alternatives while maintaining document structure and consistency.
