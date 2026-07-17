@@ -1,0 +1,48 @@
+{
+  "_instructions": "Fill in the actual PII values from your test document. Use exact strings as they appear in the document.",
+  
+  "Full names": [
+    "Example: John Smith",
+    "Example: Jane Marie Doe"
+  ],
+  
+  "Email addresses": [
+    "Example: john.smith@example.com",
+    "Example: contact@company.com"
+  ],
+  
+  "Phone numbers": [
+    "Example: +1-555-123-4567",
+    "Example: (555) 987-6543"
+  ],
+  
+  "Company names": [
+    "Example: Acme Corporation",
+    "Example: XYZ Bank Limited"
+  ],
+  
+  "Physical/mailing addresses": [
+    "Example: 123 Main Street, Apt 4B, New York, NY 10001",
+    "Example: P.O. Box 456, Los Angeles, CA 90001"
+  ],
+  
+  "Social Security Numbers": [
+    "Example: 123-45-6789",
+    "Example: 987-65-4321"
+  ],
+  
+  "Credit card numbers": [
+    "Example: 4532-1234-5678-9010",
+    "Example: 5425-2334-3010-9903"
+  ],
+  
+  "Dates of birth": [
+    "Example: 01/15/1980",
+    "Example: March 25, 1975"
+  ],
+  
+  "IP addresses": [
+    "Example: 192.168.1.1",
+    "Example: 10.0.0.254"
+  ]
+}

@@ -17,7 +17,7 @@ except ImportError:
     PatternRecognizer = None
 
 
-# Only define IndianPhoneRecognizer if Presidio is available
+# Only define custom recognizers if Presidio is available
 if PRESIDIO_AVAILABLE:
     class IndianPhoneRecognizer(PatternRecognizer):
         """Custom recognizer for Indian phone numbers"""
@@ -40,9 +40,47 @@ if PRESIDIO_AVAILABLE:
                 patterns=patterns,
                 name="IndianPhoneRecognizer"
             )
+    
+    class SebiRegistrationRecognizer(PatternRecognizer):
+        """Custom recognizer for SEBI Registration Numbers"""
+        
+        def __init__(self):
+            patterns = [
+                Pattern(
+                    name="sebi_reg_number",
+                    regex=r"\bIN[A-Z]{2}\d{8}\b",
+                    score=0.95
+                ),
+            ]
+            super().__init__(
+                supported_entity="SEBI_REG_NUMBER",
+                patterns=patterns,
+                name="SebiRegistrationRecognizer",
+                context=["SEBI", "Registration", "Reg"]
+            )
+    
+    class CinRecognizer(PatternRecognizer):
+        """Custom recognizer for Corporate Identification Numbers (CIN)"""
+        
+        def __init__(self):
+            patterns = [
+                Pattern(
+                    name="cin_number",
+                    regex=r"\b[LUFAT]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}\b",
+                    score=0.95
+                ),
+            ]
+            super().__init__(
+                supported_entity="IN_CIN",
+                patterns=patterns,
+                name="CinRecognizer",
+                context=["CIN", "Corporate Identification"]
+            )
 else:
-    # Placeholder when Presidio is not available
+    # Placeholders when Presidio is not available
     IndianPhoneRecognizer = None
+    SebiRegistrationRecognizer = None
+    CinRecognizer = None
 
 
 class PresidioRedactor(BaseRedactor):
@@ -74,11 +112,13 @@ class PresidioRedactor(BaseRedactor):
         "URL": "url",
         "IBAN_CODE": "iban",
         "NRP": "national_id",  # National Registry of Persons
-        "MEDICAL_LICENSE": "medical_license",
+        "SEBI_REG_NUMBER": "national_id",  # SEBI Registration Numbers
+        "IN_CIN": "national_id",  # Corporate Identification Numbers
         "US_BANK_NUMBER": "bank_account",
+        # Note: MEDICAL_LICENSE removed - too generic, causes false positives
     }
     
-    def __init__(self, consistency_mode: bool = True, seed: int = None, threshold: float = 0.7):
+    def __init__(self, consistency_mode: bool = True, seed: int = None, threshold: float = 0.5):
         """
         Initialize Presidio redactor
         
@@ -86,6 +126,7 @@ class PresidioRedactor(BaseRedactor):
             consistency_mode: If True, maintain consistent replacements for same values
             seed: Random seed for reproducible fake data generation
             threshold: Minimum confidence score for entity detection (0.0 to 1.0)
+                      Default 0.5 for better recall on person names
         
         Raises:
             ImportError: If Presidio is not installed
@@ -109,9 +150,20 @@ class PresidioRedactor(BaseRedactor):
             registry = RecognizerRegistry()
             registry.load_predefined_recognizers()
             
+            # Remove medical license recognizer (too generic, causes false positives)
+            registry.remove_recognizer("MedicalLicenseRecognizer")
+            
             # Add custom Indian phone number recognizer
             indian_phone_recognizer = IndianPhoneRecognizer()
             registry.add_recognizer(indian_phone_recognizer)
+            
+            # Add custom SEBI registration recognizer
+            sebi_recognizer = SebiRegistrationRecognizer()
+            registry.add_recognizer(sebi_recognizer)
+            
+            # Add custom CIN recognizer
+            cin_recognizer = CinRecognizer()
+            registry.add_recognizer(cin_recognizer)
             
             # Initialize analyzer with custom registry
             self.analyzer = AnalyzerEngine(registry=registry)
@@ -137,16 +189,19 @@ class PresidioRedactor(BaseRedactor):
         entities = []
         
         try:
+            # Pre-process text for better name detection
+            processed_text = self._preprocess_text(text)
+            
             # Analyze text with Presidio
             analyzer_results = self.analyzer.analyze(
-                text=text,
+                text=processed_text,
                 language='en',
                 score_threshold=self.threshold
             )
             
             # Convert Presidio results to our PIIEntity format
             for result in analyzer_results:
-                # Extract the actual text
+                # Extract the actual text from ORIGINAL (not processed)
                 entity_text = text[result.start:result.end]
                 
                 # Map Presidio entity type to our internal type
@@ -172,8 +227,8 @@ class PresidioRedactor(BaseRedactor):
             # Sort by start position for consistent ordering
             entities = sorted(entities, key=lambda e: e.start)
             
-            # Store detected entities
-            self.detected_entities = entities
+            # DON'T store here - let base class accumulate
+            # self.detected_entities will be populated by base_redactor.redact_document()
             
         except Exception as e:
             # Log error but don't fail completely
@@ -181,6 +236,22 @@ class PresidioRedactor(BaseRedactor):
             entities = []
         
         return entities
+    
+    def _preprocess_text(self, text: str) -> str:
+        """
+        Pre-process text for better Presidio detection
+        
+        Args:
+            text: Original text
+        
+        Returns:
+            Processed text with normalized separators
+        """
+        import re
+        # Replace slashes with commas for better name detection
+        # "Amit Chitale/ Arvind Rane" → "Amit Chitale, Arvind Rane"
+        text = re.sub(r'\s*/\s*', ', ', text)
+        return text
     
     def _is_likely_dob(self, date_text: str, full_text: str, start: int, end: int) -> bool:
         """
@@ -195,32 +266,47 @@ class PresidioRedactor(BaseRedactor):
         Returns:
             True if the date is likely a DOB, False otherwise
         """
-        # Context window: 50 characters before and after
-        context_start = max(0, start - 50)
-        context_end = min(len(full_text), end + 50)
-        context = full_text[context_start:context_end].lower()
+        # Get context BEFORE the date (most important)
+        context_before_start = max(0, start - 50)
+        context_before = full_text[context_before_start:start].lower()
+        
+        # Get small context AFTER the date
+        context_after_end = min(len(full_text), end + 20)
+        context_after = full_text[end:context_after_end].lower()
         
         # Keywords that suggest DOB
         dob_keywords = [
             'birth', 'born', 'dob', 'd.o.b', 'date of birth',
-            'birthday', 'age', 'born on'
+            'birthday', 'age', 'born on', 'years old'
         ]
         
-        # Check if any DOB keyword is in the context
-        for keyword in dob_keywords:
-            if keyword in context:
-                return True
+        # Check for keywords before and after
+        has_dob_keyword_before = any(keyword in context_before for keyword in dob_keywords)
+        has_dob_keyword_after = any(keyword in context_after for keyword in dob_keywords)
         
-        # If no specific context, be conservative
-        # Only include if it looks like a reasonable birth year (1900-2010)
+        # Keywords should appear BEFORE the date, not after
+        if not has_dob_keyword_before and not has_dob_keyword_after:
+            return False  # Must have DOB keyword
+        
+        # If keyword only after, be very strict (within 10 chars)
+        if has_dob_keyword_after and not has_dob_keyword_before:
+            immediate_after = full_text[end:end + 10].lower()
+            if not any(keyword in immediate_after for keyword in dob_keywords):
+                return False
+        
+        # If keyword found, validate year range
         import re
-        year_match = re.search(r'\b(19\d{2}|20[0-1]\d)\b', date_text)
+        year_match = re.search(r'\b(19\d{2}|20[0-2]\d)\b', date_text)
         if year_match:
             year = int(year_match.group(1))
-            if 1900 <= year <= 2010:
+            # Birth years should be reasonable (1900-2025)
+            if 1900 <= year <= 2025:
                 return True
+            else:
+                return False  # Year out of range for DOB
         
-        return False
+        # Keyword found but no clear year - be conservative
+        return True
     
     def generate_replacement(self, entity: PIIEntity) -> str:
         """
@@ -282,10 +368,6 @@ class PresidioRedactor(BaseRedactor):
         elif entity_type == "national_id":
             # Generate fake national ID
             return self._get_or_generate_generic(original, "NID", 10)
-        
-        elif entity_type == "medical_license":
-            # Generate fake medical license
-            return self._get_or_generate_generic(original, "ML", 8)
         
         elif entity_type == "bank_account":
             # Generate fake bank account

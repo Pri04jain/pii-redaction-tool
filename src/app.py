@@ -3,13 +3,25 @@ from flask import Flask, render_template, request, send_file, jsonify, flash, re
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
+import sys
 import json
 from pathlib import Path
 import tempfile
 import traceback
 
-from config import Config
-from utils.document_handler import DocumentHandler
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.config import Config
+from src.utils.document_handler import DocumentHandler
+from src.redactors import RegexRedactor, PresidioRedactor, HybridRedactor
+
+# Try to import NER (may fail)
+try:
+    from src.redactors import NERRedactor
+    NER_AVAILABLE = True
+except:
+    NER_AVAILABLE = False
 
 app = Flask(__name__, 
            template_folder='../templates',
@@ -58,30 +70,29 @@ def upload_file():
         # Load document
         doc = DocumentHandler.read_document(input_path)
         
-        # Import appropriate redactor
+        # Import appropriate redactor (already imported at top)
         if mode == "regex":
-            from redactors.regex_redactor import RegexRedactor
             redactor = RegexRedactor()
         elif mode == "ner":
-            from redactors.ner_redactor import NERRedactor
-            redactor = NERRedactor()
+            if NER_AVAILABLE:
+                redactor = NERRedactor()
+            else:
+                return jsonify({'error': 'NER mode not available. Please use another mode.'}), 400
         elif mode == "presidio":
-            from redactors.presidio_redactor import PresidioRedactor
             redactor = PresidioRedactor()
         else:  # hybrid
-            from redactors.hybrid_redactor import HybridRedactor
             redactor = HybridRedactor()
         
         # Redact document
         redacted_doc, replacements = redactor.redact_document(doc)
         
+        # Get statistics
+        stats = redactor.get_statistics()
+        
         # Save redacted document
         output_filename = f"redacted_{filename}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         DocumentHandler.save_document(redacted_doc, output_path)
-        
-        # Get statistics
-        stats = redactor.get_statistics()
         
         # Clean up input file
         os.remove(input_path)

@@ -60,8 +60,8 @@ class RegexRedactor(BaseRedactor):
         # Handle overlapping matches - choose longest match
         entities = self._resolve_overlaps(entities)
         
-        # Store detected entities
-        self.detected_entities = entities
+        # DON'T store here - let base class accumulate
+        # self.detected_entities will be populated by base_redactor.redact_document()
         
         return entities
     
@@ -181,15 +181,41 @@ class RegexRedactor(BaseRedactor):
         return entities
     
     def _detect_dobs(self, text: str) -> List[PIIEntity]:
-        """Detect dates of birth"""
+        """Detect dates of birth with context validation"""
         entities = []
+        
+        # DOB context keywords
+        DOB_KEYWORDS = ['birth', 'born', 'dob', 'd.o.b', 'date of birth', 'birthday', 'age', 'born on', 'years old']
         
         for pattern in self.compiled_patterns["dob"]:
             for match in pattern.finditer(text):
                 dob_text = match.group()
+                start = match.start()
+                end = match.end()
+                
+                # Check context BEFORE the date (most important)
+                context_before_start = max(0, start - 50)
+                context_before = text[context_before_start:start].lower()
+                
+                # Check small context AFTER the date
+                context_after_end = min(len(text), end + 20)
+                context_after = text[end:context_after_end].lower()
+                
+                # Keywords should appear BEFORE the date
+                has_dob_keyword_before = any(keyword in context_before for keyword in DOB_KEYWORDS)
+                has_dob_keyword_after = any(keyword in context_after for keyword in DOB_KEYWORDS)
+                
+                # Skip dates without DOB context
+                if not has_dob_keyword_before and not has_dob_keyword_after:
+                    continue  # Not a DOB, just a date
+                
+                # If keyword only after, be very strict
+                if has_dob_keyword_after and not has_dob_keyword_before:
+                    immediate_after = text[end:end + 10].lower()
+                    if not any(keyword in immediate_after for keyword in DOB_KEYWORDS):
+                        continue
                 
                 # Basic validation: check if it looks like a reasonable date
-                # This is a simplified check; more sophisticated date validation could be added
                 confidence = 0.7  # Medium confidence as dates can be ambiguous
                 
                 # Higher confidence for spelled-out month format
@@ -201,8 +227,8 @@ class RegexRedactor(BaseRedactor):
                 entities.append(PIIEntity(
                     text=dob_text,
                     type="dob",
-                    start=match.start(),
-                    end=match.end(),
+                    start=start,
+                    end=end,
                     confidence=confidence
                 ))
         

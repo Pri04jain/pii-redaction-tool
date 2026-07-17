@@ -126,8 +126,8 @@ class HybridRedactor(BaseRedactor):
         # 5. Sort by position
         merged_entities = sorted(merged_entities, key=lambda e: e.start)
         
-        # Store detected entities
-        self.detected_entities = merged_entities
+        # DON'T store here - let base class accumulate
+        # self.detected_entities will be populated by base_redactor.redact_document()
         
         return merged_entities
     
@@ -235,8 +235,14 @@ class HybridRedactor(BaseRedactor):
         original = entity.text
         entity_type = entity.type
         
+        # Normalize type names for consistency
+        if entity_type == "name":
+            entity_type = "person"  # Unify naming
+        if entity_type == "location":
+            entity_type = "address"  # Merge location → address
+        
         # Use the same generation logic as individual redactors
-        if entity_type in ["person", "name"]:
+        if entity_type in ["person"]:
             return self.fake_generator.generate_name(original)
         
         elif entity_type == "email":
@@ -257,7 +263,7 @@ class HybridRedactor(BaseRedactor):
         elif entity_type == "dob":
             return self.fake_generator.generate_dob(original)
         
-        elif entity_type in ["address", "location"]:
+        elif entity_type in ["address"]:
             return self.fake_generator.generate_address(original)
         
         elif entity_type in ["organization", "company"]:

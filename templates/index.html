@@ -67,29 +67,6 @@
             margin-bottom: 20px;
         }
         
-        .mode-selector {
-            margin: 20px 0;
-        }
-        
-        .mode-card {
-            padding: 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-bottom: 10px;
-        }
-        
-        .mode-card:hover {
-            border-color: var(--primary-color);
-            background: #f8fafc;
-        }
-        
-        .mode-card.selected {
-            border-color: var(--primary-color);
-            background: #eef2ff;
-        }
-        
         .btn-primary {
             background: var(--primary-color);
             border: none;
@@ -153,47 +130,14 @@
                         </button>
                     </div>
                     
-                    <div class="mode-selector">
-                        <h5 class="mb-3">Select Redaction Mode</h5>
-                        <div id="modeOptions">
-                            <div class="mode-card" data-mode="hybrid">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1"><i class="fas fa-star text-warning"></i> Hybrid (Recommended)</h6>
-                                        <p class="text-muted mb-0 small">Best combination of all approaches</p>
-                                    </div>
-                                    <span class="badge bg-warning text-dark">Most Accurate</span>
-                                </div>
-                            </div>
-                            
-                            <div class="mode-card" data-mode="presidio">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1"><i class="fas fa-robot"></i> Presidio</h6>
-                                        <p class="text-muted mb-0 small">Microsoft's comprehensive PII detection</p>
-                                    </div>
-                                    <span class="badge bg-info">Medium</span>
-                                </div>
-                            </div>
-                            
-                            <div class="mode-card" data-mode="ner">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1"><i class="fas fa-brain"></i> NER (spaCy)</h6>
-                                        <p class="text-muted mb-0 small">Context-aware named entity recognition</p>
-                                    </div>
-                                    <span class="badge bg-success">Fast</span>
-                                </div>
-                            </div>
-                            
-                            <div class="mode-card" data-mode="regex">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1"><i class="fas fa-lightning-bolt"></i> Regex-Based</h6>
-                                        <p class="text-muted mb-0 small">Fast pattern matching for structured data</p>
-                                    </div>
-                                    <span class="badge bg-primary">Fastest</span>
-                                </div>
+                    <div class="alert alert-light mt-3 border">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-star text-warning me-3" style="font-size: 2rem;"></i>
+                            <div>
+                                <h6 class="mb-1"><strong>Hybrid Detection Enabled</strong></h6>
+                                <p class="text-muted mb-0 small">
+                                    Using advanced multi-approach PII detection combining Regex, NER, and Presidio for maximum accuracy
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -257,7 +201,6 @@
     
     <script>
         let selectedFile = null;
-        let selectedMode = 'hybrid';
         let resultFilename = null;
         
         // File upload handling
@@ -309,17 +252,8 @@
             document.getElementById('redactBtn').disabled = true;
         }
         
-        // Mode selection
-        document.querySelectorAll('.mode-card').forEach(card => {
-            card.addEventListener('click', function() {
-                document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
-                this.classList.add('selected');
-                selectedMode = this.dataset.mode;
-            });
-        });
-        
-        // Set default mode
-        document.querySelector('[data-mode="hybrid"]').classList.add('selected');
+        // Mode selection - Always use hybrid (best approach)
+        const selectedMode = 'hybrid';
         
         async function startRedaction() {
             if (!selectedFile) return;
