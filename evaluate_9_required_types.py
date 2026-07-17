@@ -204,8 +204,8 @@ def main():
     
     # Load test document
     print("\nLoading test document...")
-    doc_path = 'tests/test_data/part_1.docx'  # Update with your test file
-    ground_truth_path = 'tests/test_data/part_1_ground_truth.json'  # Update with your ground truth
+    doc_path = 'tests/test_data/sample_test_document.docx'  # Update with your test file
+    ground_truth_path = 'tests/test_data/sample_test_ground_truth.json'  # Update with your ground truth
     
     try:
         doc = DocumentHandler.read_document(doc_path)
