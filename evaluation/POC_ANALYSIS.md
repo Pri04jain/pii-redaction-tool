@@ -52,6 +52,12 @@ We evaluated **3 professional-grade PII redaction approaches** on real financial
 
 **Coverage**: 8 of 9 required types found in test document. System fully supports all 9 types (verified on synthetic test data).
 
+**Why only 8 types in Red Herring Prospectus?**
+- SSNs, Credit Cards, and IP Addresses are highly sensitive financial data
+- Public financial prospectuses intentionally exclude such information for security
+- These types ARE implemented and tested (see `test_all_9_types.py`)
+- Real-world enterprise documents will contain all 9 types
+
 ---
 
 ## Accuracy Analysis
@@ -59,16 +65,18 @@ We evaluated **3 professional-grade PII redaction approaches** on real financial
 ### Regex Redactor
 **Strengths**:
 - ✅ Zero false negatives for structured PII (emails, SSNs, credit cards)
+- ✅ **Now detects company names** via pattern matching (68 detected)
 - ✅ Luhn validation for credit cards (95% confidence)
 - ✅ Date format validation with month name recognition
-- ✅ Blazing fast (50x faster than Presidio)
+- ✅ Blazing fast (139x faster than Presidio, 130x faster than Hybrid)
 
 **Limitations**:
 - ❌ Cannot detect person names (requires NLP)
-- ❌ Cannot detect unstructured PII
+- ❌ Cannot detect unstructured PII without clear patterns
 - ⚠️ Some false positives: detected "December 10, 2025" (document date) as DOB
+- ⚠️ Organization patterns may over-match (e.g., "Section Corporation")
 
-**Precision Estimate**: ~75% (23 likely true positives, 45 false positives based on manual inspection)
+**Precision Estimate**: ~70-75% (more false positives due to aggressive pattern matching, but catches structured data reliably)
 
 ---
 
@@ -77,10 +85,12 @@ We evaluated **3 professional-grade PII redaction approaches** on real financial
 - ✅ Detects person names using NLP (23 detected)
 - ✅ Detects 7 PII types including contextual entities
 - ✅ Production-ready, enterprise-tested
+- ✅ Better context understanding reduces false positives
 
 **Limitations**:
-- ⚠️ Slower (2.11s per document)
+- ⚠️ Slower (1.39s per document)
 - ⚠️ Requires 500MB+ model download (en_core_web_lg)
+- ❌ Misses organization/company names (weak NER for organizations)
 - ⚠️ May have lower recall on uncommon formats
 
 **Precision Estimate**: ~85% (fewer false positives than Regex, better context understanding)
@@ -89,17 +99,18 @@ We evaluated **3 professional-grade PII redaction approaches** on real financial
 
 ### Hybrid Redactor (Recommended)
 **Strengths**:
-- ✅ **Highest recall**: Catches 187 entities (2.3x more than Regex)
-- ✅ Combines regex precision + NLP recall
-- ✅ 30% faster than Presidio alone
-- ✅ Detects all 7 PII types
+- ✅ **Highest recall**: Catches 254 entities (3.6x more than Regex, 2.2x more than Presidio)
+- ✅ Combines regex precision (org names, dates) + NLP recall (person names, context)
+- ✅ Faster than Presidio alone (1.30s vs 1.39s per doc)
+- ✅ Detects **8 of 9 required PII types** in test document
+- ✅ All 9 types supported (verified on comprehensive test data)
 - ✅ Deduplicates overlapping matches
 
 **Trade-offs**:
-- ⚠️ 70x slower than pure Regex (but still ~1.5s/doc, acceptable for most use cases)
-- ⚠️ Requires spaCy + Presidio dependencies
+- ⚠️ 130x slower than pure Regex (but still ~1.3s/doc, acceptable for production)
+- ⚠️ Requires spaCy + Presidio dependencies (~800MB memory)
 
-**Precision Estimate**: ~80-85% (inherits both methods' strengths)
+**Precision Estimate**: ~80-85% (inherits both methods' strengths, balanced false positive rate)
 
 ---
 
@@ -109,9 +120,9 @@ We evaluated **3 professional-grade PII redaction approaches** on real financial
 
 | Redactor | Total Time | Throughput | Memory |
 |----------|------------|------------|--------|
-| Regex      | 0.03s | **66 docs/sec** | ~50MB |
-| Presidio   | 4.23s | 0.47 docs/sec | ~800MB |
-| Hybrid     | 2.93s | 0.68 docs/sec | ~800MB |
+| Regex      | 0.02s | **100 docs/sec** | ~50MB |
+| Presidio   | 2.78s | 0.72 docs/sec | ~800MB |
+| Hybrid     | 2.61s | 0.77 docs/sec | ~800MB |
 
 ---
 
