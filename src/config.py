@@ -27,7 +27,7 @@ class Config:
     ALLOWED_EXTENSIONS = {"docx"}
     
     # Model Configuration
-    SPACY_MODEL = os.getenv("SPACY_MODEL", "en_core_web_lg")
+    SPACY_MODEL = os.getenv("SPACY_MODEL", "en_core_web_sm")  # Use small model by default for Railway
     USE_GPU = os.getenv("USE_GPU", "false").lower() == "true"
     
     # Redaction Configuration

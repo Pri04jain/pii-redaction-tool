@@ -1,9 +1,14 @@
 [phases.install]
 cmds = [
     "pip install --upgrade pip",
-    "pip install -r requirements.txt",
-    "python -m spacy download en_core_web_lg"
+    "pip install -r requirements.txt"
+]
+
+[phases.setup]
+cmds = [
+    "python -m spacy download en_core_web_sm",
+    "python railway_setup.py"
 ]
 
 [start]
-cmd = "gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 2 --log-level debug src.app:app"
+cmd = "gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 2 --log-level info src.app:app"

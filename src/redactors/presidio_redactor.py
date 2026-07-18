@@ -166,14 +166,31 @@ class PresidioRedactor(BaseRedactor):
             registry.add_recognizer(cin_recognizer)
             
             # Initialize analyzer with custom registry
-            self.analyzer = AnalyzerEngine(registry=registry)
+            # Try multiple spaCy models in order of preference
+            spacy_models = ['en_core_web_lg', 'en_core_web_md', 'en_core_web_sm']
+            analyzer_created = False
+            
+            for model_name in spacy_models:
+                try:
+                    print(f"Trying to initialize Presidio with spaCy model: {model_name}")
+                    self.analyzer = AnalyzerEngine(registry=registry)
+                    print(f"✅ Presidio initialized successfully with {model_name}")
+                    analyzer_created = True
+                    break
+                except Exception as model_error:
+                    print(f"Failed to use {model_name}: {model_error}")
+                    continue
+            
+            if not analyzer_created:
+                raise RuntimeError("Failed to initialize Presidio with any spaCy model")
+            
             self.anonymizer = AnonymizerEngine()
             
         except Exception as e:
             raise RuntimeError(
                 f"Failed to initialize Presidio engines: {e}\n"
                 "Make sure spaCy model is installed:\n"
-                "python -m spacy download en_core_web_lg"
+                "python -m spacy download en_core_web_sm (or en_core_web_lg)"
             )
     
     def detect_pii(self, text: str) -> List[PIIEntity]:
