@@ -155,12 +155,24 @@ def upload_file():
         redactor = get_redactor(mode)
         
         if redactor is None:
-            error_msg = f'{mode.upper()} mode is not available or failed to initialize. Please try another mode.'
+            error_msg = f'{mode.upper()} mode is not available or failed to initialize.'
+            
+            # Provide specific guidance based on mode
+            if mode == "presidio" or mode == "hybrid":
+                error_msg += ' This may be due to spaCy model not being available. Try using Regex mode instead.'
+            
             logger.error(error_msg)
+            logger.error(f"Available redactors: {list(_redactors_cache.keys())}")
+            
             # Clean up uploaded file
             if os.path.exists(input_path):
                 os.remove(input_path)
-            return jsonify({'error': error_msg}), 400
+            
+            return jsonify({
+                'error': error_msg,
+                'available_modes': ['regex'] + list(_redactors_cache.keys()),
+                'suggestion': 'Try using Regex mode for fast and reliable redaction.'
+            }), 400
         
         logger.info(f"Using redactor: {type(redactor).__name__}")
         redactor_init_time = time.time()
@@ -370,34 +382,73 @@ def health_detailed():
 
 @app.route('/api/modes')
 def get_modes():
-    """Get available redaction modes"""
+    """Get available redaction modes with their actual availability status"""
+    modes = []
+    
+    # Check which redactors are actually loaded
+    loaded_modes = list(_redactors_cache.keys())
+    
+    # Regex - always available
+    modes.append({
+        'id': 'regex',
+        'name': 'Regex (Recommended)',
+        'description': 'Fast pattern matching for structured data',
+        'speed': 'Fast',
+        'available': True,
+        'status': 'ready'
+    })
+    
+    # Try to load Presidio if not cached
+    presidio_available = 'presidio' in loaded_modes
+    presidio_status = 'ready' if presidio_available else 'not loaded'
+    
+    if not presidio_available:
+        try:
+            test_redactor = get_redactor('presidio')
+            presidio_available = test_redactor is not None
+            presidio_status = 'ready' if presidio_available else 'failed'
+        except:
+            presidio_status = 'error'
+    
+    modes.append({
+        'id': 'presidio',
+        'name': 'Presidio',
+        'description': 'Microsoft\'s comprehensive PII detection',
+        'speed': 'Medium',
+        'available': presidio_available,
+        'status': presidio_status
+    })
+    
+    # Hybrid depends on Presidio
+    hybrid_available = presidio_available
+    hybrid_status = 'ready' if hybrid_available else 'requires presidio'
+    
+    modes.append({
+        'id': 'hybrid',
+        'name': 'Hybrid',
+        'description': 'Best combination of all approaches',
+        'speed': 'Slower but most accurate',
+        'available': hybrid_available,
+        'status': hybrid_status
+    })
+    
+    # NER
+    ner_available = NER_AVAILABLE and 'ner' in loaded_modes
+    ner_status = 'ready' if ner_available else 'not available'
+    
+    modes.append({
+        'id': 'ner',
+        'name': 'NER (spaCy)',
+        'description': 'Context-aware named entity recognition',
+        'speed': 'Medium',
+        'available': ner_available,
+        'status': ner_status
+    })
+    
     return jsonify({
-        'modes': [
-            {
-                'id': 'regex',
-                'name': 'Regex-Based',
-                'description': 'Fast pattern matching for structured data',
-                'speed': 'Fast'
-            },
-            {
-                'id': 'ner',
-                'name': 'NER (spaCy)',
-                'description': 'Context-aware named entity recognition',
-                'speed': 'Medium'
-            },
-            {
-                'id': 'presidio',
-                'name': 'Presidio',
-                'description': 'Microsoft\'s comprehensive PII detection',
-                'speed': 'Medium'
-            },
-            {
-                'id': 'hybrid',
-                'name': 'Hybrid (Recommended)',
-                'description': 'Best combination of all approaches',
-                'speed': 'Slower but most accurate'
-            }
-        ]
+        'modes': modes,
+        'loaded_redactors': loaded_modes,
+        'recommendations': 'Use Regex for fast and reliable redaction. Presidio/Hybrid provide better accuracy but may not be available in all environments.'
     })
 
 if __name__ == '__main__':
