@@ -42,9 +42,17 @@ env/
 .env.*.local
 
 # Test Files
-tests/test_data/*.docx
-tests/ground_truth/*.json
+tests/
+test_*.py
+*_test.py
 *.log
+
+# Debug and temporary scripts
+debug_*.py
+check_*.py
+evaluate_*.py
+verify_*.py
+convert_*.py
 
 # Output Files
 output/
@@ -72,5 +80,5 @@ Enterprise Data - Assignment.txt
 Red Herring Prospectus.docx
 *.pdf
 
-# Internal docs (keep in repo)
-!docs/**/*.md
+# Markdown files (documentation, notes, etc.)
+*.md
