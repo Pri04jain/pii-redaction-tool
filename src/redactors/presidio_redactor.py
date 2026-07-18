@@ -166,25 +166,26 @@ class PresidioRedactor(BaseRedactor):
             registry.add_recognizer(cin_recognizer)
             
             # Initialize analyzer with custom registry
-            # Try multiple spaCy models in order of preference
-            spacy_models = ['en_core_web_lg', 'en_core_web_md', 'en_core_web_sm']
-            analyzer_created = False
+            # Use runtime model loader with fallback
+            print("Initializing Presidio analyzer...")
             
-            for model_name in spacy_models:
-                try:
-                    print(f"Trying to initialize Presidio with spaCy model: {model_name}")
-                    self.analyzer = AnalyzerEngine(registry=registry)
-                    print(f"✅ Presidio initialized successfully with {model_name}")
-                    analyzer_created = True
-                    break
-                except Exception as model_error:
-                    print(f"Failed to use {model_name}: {model_error}")
-                    continue
+            try:
+                # Try to use the spacy_loader utility
+                from ..utils.spacy_loader import get_cached_spacy_model
+                nlp = get_cached_spacy_model()
+                
+                if nlp:
+                    print(f"✅ Loaded spaCy model: {nlp.meta.get('name', 'unknown')}")
+                else:
+                    print("⚠️ No spaCy model available, Presidio may not work optimally")
+            except Exception as loader_error:
+                print(f"⚠️ spacy_loader failed: {loader_error}")
             
-            if not analyzer_created:
-                raise RuntimeError("Failed to initialize Presidio with any spaCy model")
+            self.analyzer = AnalyzerEngine(registry=registry)
+            print("✅ Presidio analyzer initialized")
             
             self.anonymizer = AnonymizerEngine()
+            print("✅ Presidio anonymizer initialized")
             
         except Exception as e:
             raise RuntimeError(

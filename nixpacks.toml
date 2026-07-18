@@ -6,8 +6,8 @@ cmds = [
 
 [phases.setup]
 cmds = [
-    "python -m spacy download en_core_web_sm",
-    "python railway_setup.py"
+    "chmod +x install_spacy_model.sh",
+    "bash install_spacy_model.sh"
 ]
 
 [start]

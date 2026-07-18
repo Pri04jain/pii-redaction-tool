@@ -195,27 +195,29 @@ def health_detailed():
         spacy_model_loaded = False
         spacy_model_name = None
         spacy_error = None
+        installed_models = []
         
-        # Try to check installed models without loading them
+        # Try to get installed models
         try:
-            import spacy.cli
             installed_models = list(spacy.util.get_installed_models())
             logger.info(f"Installed spaCy models: {installed_models}")
+        except Exception as e:
+            logger.error(f"Error getting installed models: {e}")
+        
+        # Try using the spacy_loader utility
+        try:
+            from src.utils.spacy_loader import get_cached_spacy_model
+            nlp = get_cached_spacy_model()
             
-            # Try loading models
-            for model in ['en_core_web_sm', 'en_core_web_md', 'en_core_web_lg']:
-                if model in installed_models:
-                    try:
-                        nlp = spacy.load(model)
-                        spacy_model_loaded = True
-                        spacy_model_name = model
-                        break
-                    except Exception as load_error:
-                        logger.error(f"Failed to load {model}: {load_error}")
-                        spacy_error = str(load_error)
-        except Exception as check_error:
-            logger.error(f"Error checking models: {check_error}")
-            spacy_error = str(check_error)
+            if nlp:
+                spacy_model_loaded = True
+                spacy_model_name = nlp.meta.get('name', 'unknown')
+                logger.info(f"✅ Loaded model via spacy_loader: {spacy_model_name}")
+            else:
+                spacy_error = "No model could be loaded"
+        except Exception as load_error:
+            logger.error(f"spacy_loader failed: {load_error}")
+            spacy_error = str(load_error)
         
         # Check Presidio
         presidio_available = False
@@ -233,6 +235,7 @@ def health_detailed():
                 'spacy_available': True,
                 'spacy_model_loaded': spacy_model_loaded,
                 'spacy_model': spacy_model_name,
+                'spacy_installed_models': installed_models,
                 'spacy_error': spacy_error,
                 'presidio_available': presidio_available,
                 'presidio_error': presidio_error,
