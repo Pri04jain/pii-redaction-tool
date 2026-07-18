@@ -175,29 +175,56 @@ def download_file(filename):
 def health():
     """Health check endpoint with dependency info"""
     try:
+        # Quick basic health check
+        return jsonify({
+            'status': 'healthy',
+            'version': '1.0.0',
+            'message': 'Server is running'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e)
+        }), 500
+
+@app.route('/health/detailed')
+def health_detailed():
+    """Detailed health check with dependency info"""
+    try:
         import spacy
         spacy_model_loaded = False
         spacy_model_name = None
+        spacy_error = None
         
+        # Try to check installed models without loading them
         try:
-            nlp = spacy.load("en_core_web_lg")
-            spacy_model_loaded = True
-            spacy_model_name = "en_core_web_lg"
-        except:
-            try:
-                nlp = spacy.load("en_core_web_sm")
-                spacy_model_loaded = True
-                spacy_model_name = "en_core_web_sm"
-            except:
-                pass
+            import spacy.cli
+            installed_models = list(spacy.util.get_installed_models())
+            logger.info(f"Installed spaCy models: {installed_models}")
+            
+            # Try loading models
+            for model in ['en_core_web_sm', 'en_core_web_md', 'en_core_web_lg']:
+                if model in installed_models:
+                    try:
+                        nlp = spacy.load(model)
+                        spacy_model_loaded = True
+                        spacy_model_name = model
+                        break
+                    except Exception as load_error:
+                        logger.error(f"Failed to load {model}: {load_error}")
+                        spacy_error = str(load_error)
+        except Exception as check_error:
+            logger.error(f"Error checking models: {check_error}")
+            spacy_error = str(check_error)
         
         # Check Presidio
         presidio_available = False
+        presidio_error = None
         try:
             from presidio_analyzer import AnalyzerEngine
             presidio_available = True
-        except:
-            pass
+        except Exception as p_error:
+            presidio_error = str(p_error)
         
         return jsonify({
             'status': 'healthy',
@@ -206,7 +233,9 @@ def health():
                 'spacy_available': True,
                 'spacy_model_loaded': spacy_model_loaded,
                 'spacy_model': spacy_model_name,
+                'spacy_error': spacy_error,
                 'presidio_available': presidio_available,
+                'presidio_error': presidio_error,
                 'ner_available': NER_AVAILABLE
             },
             'folders': {
@@ -215,6 +244,8 @@ def health():
             }
         })
     except Exception as e:
+        logger.error(f"Health check error: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
