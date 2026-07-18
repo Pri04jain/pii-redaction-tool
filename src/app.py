@@ -64,10 +64,12 @@ def get_redactor(mode):
                     logger.warning("NER not available")
                     return None
             elif mode == "presidio":
-                logger.info("Initializing Presidio (this may take a moment)...")
+                logger.info("Initializing Presidio (this may take 10-30 seconds)...")
+                logger.info("Loading spaCy model...")
                 _redactors_cache[mode] = PresidioRedactor()
             elif mode == "hybrid":
-                logger.info("Initializing Hybrid (this may take a moment)...")
+                logger.info("Initializing Hybrid (this may take 10-30 seconds)...")
+                logger.info("Loading spaCy model...")
                 _redactors_cache[mode] = HybridRedactor()
             logger.info(f"✅ {mode} redactor created successfully")
         except Exception as e:
@@ -88,16 +90,9 @@ try:
 except Exception as e:
     logger.error(f"Failed to pre-load regex redactor: {e}")
 
-# Try to pre-load presidio (may be slow, skip for faster startup)
-# Presidio will be loaded on first use
-# try:
-#     logger.info("Pre-loading presidio redactor...")
-#     get_redactor("presidio")
-#     logger.info("✅ Presidio redactor ready")
-# except Exception as e:
-#     logger.warning(f"Presidio pre-load failed: {e}")
-#     logger.warning("Presidio will be loaded on first use")
-logger.info("Presidio will be loaded on first use (lazy loading enabled)")
+# DON'T pre-load Presidio/Hybrid on Railway - causes 502 timeout
+# They will be loaded on first use (lazy loading)
+logger.info("Presidio and Hybrid will be loaded on first use (lazy loading enabled)")
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
