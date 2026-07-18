@@ -112,6 +112,9 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Handle file upload and redaction"""
+    import time
+    start_time = time.time()
+    
     try:
         logger.info("=== Upload request received ===")
         
@@ -131,7 +134,7 @@ def upload_file():
             return jsonify({'error': 'Invalid file type. Only DOCX files are allowed'}), 400
         
         # Get redaction mode
-        mode = request.form.get('mode', 'hybrid')
+        mode = request.form.get('mode', 'regex')
         logger.info(f"Redaction mode: {mode}")
         
         # Save uploaded file
@@ -139,11 +142,13 @@ def upload_file():
         input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         logger.info(f"Saving file to: {input_path}")
         file.save(input_path)
+        file_save_time = time.time()
         
         # Load document
         logger.info("Loading document...")
         doc = DocumentHandler.read_document(input_path)
         logger.info(f"Document loaded successfully: {len(doc.paragraphs)} paragraphs")
+        doc_load_time = time.time()
         
         # Get cached redactor (or create if not cached)
         logger.info(f"Getting {mode} redactor...")
@@ -158,6 +163,7 @@ def upload_file():
             return jsonify({'error': error_msg}), 400
         
         logger.info(f"Using redactor: {type(redactor).__name__}")
+        redactor_init_time = time.time()
         
         # Reset redactor state before use (in case it's cached)
         try:
@@ -167,8 +173,59 @@ def upload_file():
         
         # Redact document
         logger.info("Starting redaction...")
+        redaction_start = time.time()
         redacted_doc, replacements = redactor.redact_document(doc)
+        redaction_end = time.time()
         logger.info(f"Redaction complete: {len(replacements)} replacements made")
+        logger.info(f"Redaction took: {redaction_end - redaction_start:.2f} seconds")
+        
+        # Get statistics
+        stats = redactor.get_statistics()
+        logger.info(f"Statistics: {stats}")
+        
+        # Save redacted document
+        output_filename = f"redacted_{filename}"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        logger.info(f"Saving redacted document to: {output_path}")
+        DocumentHandler.save_document(redacted_doc, output_path)
+        logger.info("Document saved successfully")
+        save_time = time.time()
+        
+        # Clean up input file
+        os.remove(input_path)
+        logger.info("Input file cleaned up")
+        
+        # Calculate total time
+        end_time = time.time()
+        total_time = end_time - start_time
+        processing_time = redaction_end - redaction_start
+        
+        logger.info(f"=== Total processing time: {total_time:.2f} seconds ===")
+        
+        return jsonify({
+            'success': True,
+            'filename': output_filename,
+            'stats': stats,
+            'total_redactions': sum(stats.values()),
+            'timing': {
+                'total': round(total_time, 2),
+                'redaction': round(processing_time, 2),
+                'file_load': round(doc_load_time - file_save_time, 2),
+                'save': round(save_time - redaction_end, 2)
+            },
+            'mode': mode
+        })
+    
+    except Exception as e:
+        logger.error(f"=== ERROR in upload_file ===")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        
+        return jsonify({
+            'error': f'{type(e).__name__}: {str(e)}',
+            'details': traceback.format_exc()
+        }), 500
         
         # Get statistics
         stats = redactor.get_statistics()
