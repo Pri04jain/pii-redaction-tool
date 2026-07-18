@@ -121,9 +121,18 @@ class BaseRedactor(ABC):
                     })
         
         # Redact tables
+        # Track processed cells to avoid duplicate processing of merged cells
+        processed_cells = set()
+        
         for table_idx, table in enumerate(doc.tables):
             for row_idx, row in enumerate(table.rows):
-                for cell_idx, cell in row.cells:
+                for cell_idx, cell in enumerate(row.cells):
+                    # Skip if this cell was already processed (merged cells appear multiple times)
+                    cell_id = id(cell)
+                    if cell_id in processed_cells:
+                        continue
+                    processed_cells.add(cell_id)
+                    
                     for para_idx, para in enumerate(cell.paragraphs):
                         if para.text.strip():
                             entities = self.detect_pii(para.text)
