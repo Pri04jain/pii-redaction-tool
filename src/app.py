@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import tempfile
 import traceback
+import logging
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -29,9 +30,21 @@ app = Flask(__name__,
 app.config.from_object(Config)
 CORS(app)
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Ensure upload and output directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+
+# Log startup information
+logger.info(f"Upload folder: {app.config['UPLOAD_FOLDER']}")
+logger.info(f"Output folder: {app.config['OUTPUT_FOLDER']}")
+logger.info(f"NER Available: {NER_AVAILABLE}")
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
@@ -47,55 +60,74 @@ def index():
 def upload_file():
     """Handle file upload and redaction"""
     try:
+        logger.info("=== Upload request received ===")
+        
         # Check if file is present
         if 'file' not in request.files:
+            logger.error("No file in request")
             return jsonify({'error': 'No file provided'}), 400
         
         file = request.files['file']
         
         if file.filename == '':
+            logger.error("Empty filename")
             return jsonify({'error': 'No file selected'}), 400
         
         if not allowed_file(file.filename):
+            logger.error(f"Invalid file type: {file.filename}")
             return jsonify({'error': 'Invalid file type. Only DOCX files are allowed'}), 400
         
         # Get redaction mode
         mode = request.form.get('mode', 'hybrid')
+        logger.info(f"Redaction mode: {mode}")
         
         # Save uploaded file
         filename = secure_filename(file.filename)
         input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        logger.info(f"Saving file to: {input_path}")
         file.save(input_path)
         
         # Load document
+        logger.info("Loading document...")
         doc = DocumentHandler.read_document(input_path)
+        logger.info(f"Document loaded successfully: {len(doc.paragraphs)} paragraphs")
         
         # Import appropriate redactor (already imported at top)
+        logger.info(f"Initializing {mode} redactor...")
         if mode == "regex":
             redactor = RegexRedactor()
         elif mode == "ner":
             if NER_AVAILABLE:
                 redactor = NERRedactor()
             else:
+                logger.error("NER mode not available")
                 return jsonify({'error': 'NER mode not available. Please use another mode.'}), 400
         elif mode == "presidio":
             redactor = PresidioRedactor()
         else:  # hybrid
             redactor = HybridRedactor()
         
+        logger.info(f"Redactor initialized: {type(redactor).__name__}")
+        
         # Redact document
+        logger.info("Starting redaction...")
         redacted_doc, replacements = redactor.redact_document(doc)
+        logger.info(f"Redaction complete: {len(replacements)} replacements made")
         
         # Get statistics
         stats = redactor.get_statistics()
+        logger.info(f"Statistics: {stats}")
         
         # Save redacted document
         output_filename = f"redacted_{filename}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        logger.info(f"Saving redacted document to: {output_path}")
         DocumentHandler.save_document(redacted_doc, output_path)
+        logger.info("Document saved successfully")
         
         # Clean up input file
         os.remove(input_path)
+        logger.info("Input file cleaned up")
         
         return jsonify({
             'success': True,
@@ -105,8 +137,15 @@ def upload_file():
         })
     
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"=== ERROR in upload_file ===")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        
+        return jsonify({
+            'error': f'{type(e).__name__}: {str(e)}',
+            'details': traceback.format_exc()
+        }), 500
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -134,8 +173,53 @@ def download_file(filename):
 
 @app.route('/health')
 def health():
-    """Health check endpoint"""
-    return jsonify({'status': 'healthy', 'version': '1.0.0'})
+    """Health check endpoint with dependency info"""
+    try:
+        import spacy
+        spacy_model_loaded = False
+        spacy_model_name = None
+        
+        try:
+            nlp = spacy.load("en_core_web_lg")
+            spacy_model_loaded = True
+            spacy_model_name = "en_core_web_lg"
+        except:
+            try:
+                nlp = spacy.load("en_core_web_sm")
+                spacy_model_loaded = True
+                spacy_model_name = "en_core_web_sm"
+            except:
+                pass
+        
+        # Check Presidio
+        presidio_available = False
+        try:
+            from presidio_analyzer import AnalyzerEngine
+            presidio_available = True
+        except:
+            pass
+        
+        return jsonify({
+            'status': 'healthy',
+            'version': '1.0.0',
+            'dependencies': {
+                'spacy_available': True,
+                'spacy_model_loaded': spacy_model_loaded,
+                'spacy_model': spacy_model_name,
+                'presidio_available': presidio_available,
+                'ner_available': NER_AVAILABLE
+            },
+            'folders': {
+                'upload': str(app.config['UPLOAD_FOLDER']),
+                'output': str(app.config['OUTPUT_FOLDER'])
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 @app.route('/api/modes')
 def get_modes():
