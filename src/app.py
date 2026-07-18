@@ -52,30 +52,22 @@ _redactors_cache = {}
 
 def get_redactor(mode):
     """Get or create a redactor instance (cached)"""
+    
+    # On Railway, only Regex is reliable - disable others to prevent 502
+    if mode in ["presidio", "hybrid", "ner"]:
+        logger.warning(f"{mode} mode is disabled on this deployment (memory constraints)")
+        logger.info("Regex mode is recommended for Railway deployments")
+        return None
+    
     if mode not in _redactors_cache:
         logger.info(f"Creating new {mode} redactor...")
         try:
             if mode == "regex":
                 _redactors_cache[mode] = RegexRedactor()
-            elif mode == "ner":
-                if NER_AVAILABLE:
-                    _redactors_cache[mode] = NERRedactor()
-                else:
-                    logger.warning("NER not available")
-                    return None
-            elif mode == "presidio":
-                logger.info("Initializing Presidio (this may take 10-30 seconds)...")
-                logger.info("Loading spaCy model...")
-                _redactors_cache[mode] = PresidioRedactor()
-            elif mode == "hybrid":
-                logger.info("Initializing Hybrid (this may take 10-30 seconds)...")
-                logger.info("Loading spaCy model...")
-                _redactors_cache[mode] = HybridRedactor()
             logger.info(f"✅ {mode} redactor created successfully")
         except Exception as e:
             logger.error(f"❌ Failed to create {mode} redactor: {e}")
             logger.error(traceback.format_exc())
-            # Don't cache failed attempts
             return None
     else:
         logger.info(f"Using cached {mode} redactor")
@@ -150,14 +142,10 @@ def upload_file():
         redactor = get_redactor(mode)
         
         if redactor is None:
-            error_msg = f'{mode.upper()} mode is not available or failed to initialize.'
-            
-            # Provide specific guidance based on mode
-            if mode == "presidio" or mode == "hybrid":
-                error_msg += ' This may be due to spaCy model not being available. Try using Regex mode instead.'
+            error_msg = f'{mode.upper()} mode is not available on this deployment due to memory constraints.'
             
             logger.error(error_msg)
-            logger.error(f"Available redactors: {list(_redactors_cache.keys())}")
+            logger.error(f"Available modes: regex only")
             
             # Clean up uploaded file
             if os.path.exists(input_path):
@@ -165,8 +153,9 @@ def upload_file():
             
             return jsonify({
                 'error': error_msg,
-                'available_modes': ['regex'] + list(_redactors_cache.keys()),
-                'suggestion': 'Try using Regex mode for fast and reliable redaction.'
+                'available_modes': ['regex'],
+                'suggestion': 'Please use Regex mode. It detects emails, phones, SSN, credit cards, IP addresses, and more!',
+                'note': 'Regex mode is fast, reliable, and works great for most documents.'
             }), 400
         
         logger.info(f"Using redactor: {type(redactor).__name__}")
