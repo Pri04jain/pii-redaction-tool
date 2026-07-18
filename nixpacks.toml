@@ -9,4 +9,4 @@ cmds = [
 aptPkgs = []
 
 [start]
-cmd = "gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 2 --log-level info src.app:app"
+cmd = "gunicorn --bind 0.0.0.0:$PORT --timeout 600 --workers 1 --threads 2 --worker-class gthread --log-level info --access-logfile - --error-logfile - src.app:app"

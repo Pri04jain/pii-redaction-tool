@@ -46,6 +46,48 @@ logger.info(f"Upload folder: {app.config['UPLOAD_FOLDER']}")
 logger.info(f"Output folder: {app.config['OUTPUT_FOLDER']}")
 logger.info(f"NER Available: {NER_AVAILABLE}")
 
+# Pre-initialize redactors to avoid timeout on first request
+logger.info("Pre-initializing redactors...")
+_redactors_cache = {}
+
+def get_redactor(mode):
+    """Get or create a redactor instance (cached)"""
+    if mode not in _redactors_cache:
+        logger.info(f"Creating new {mode} redactor...")
+        if mode == "regex":
+            _redactors_cache[mode] = RegexRedactor()
+        elif mode == "ner":
+            if NER_AVAILABLE:
+                _redactors_cache[mode] = NERRedactor()
+            else:
+                return None
+        elif mode == "presidio":
+            _redactors_cache[mode] = PresidioRedactor()
+        elif mode == "hybrid":
+            _redactors_cache[mode] = HybridRedactor()
+        logger.info(f"✅ {mode} redactor created")
+    else:
+        logger.info(f"Using cached {mode} redactor")
+    
+    return _redactors_cache.get(mode)
+
+# Pre-load regex redactor (fast, always works)
+try:
+    logger.info("Pre-loading regex redactor...")
+    get_redactor("regex")
+    logger.info("✅ Regex redactor ready")
+except Exception as e:
+    logger.error(f"Failed to pre-load regex redactor: {e}")
+
+# Try to pre-load presidio (may be slow, do in background)
+try:
+    logger.info("Pre-loading presidio redactor...")
+    get_redactor("presidio")
+    logger.info("✅ Presidio redactor ready")
+except Exception as e:
+    logger.warning(f"Presidio pre-load failed: {e}")
+    logger.warning("Presidio will be loaded on first use")
+
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and \
@@ -92,22 +134,18 @@ def upload_file():
         doc = DocumentHandler.read_document(input_path)
         logger.info(f"Document loaded successfully: {len(doc.paragraphs)} paragraphs")
         
-        # Import appropriate redactor (already imported at top)
-        logger.info(f"Initializing {mode} redactor...")
-        if mode == "regex":
-            redactor = RegexRedactor()
-        elif mode == "ner":
-            if NER_AVAILABLE:
-                redactor = NERRedactor()
-            else:
-                logger.error("NER mode not available")
-                return jsonify({'error': 'NER mode not available. Please use another mode.'}), 400
-        elif mode == "presidio":
-            redactor = PresidioRedactor()
-        else:  # hybrid
-            redactor = HybridRedactor()
+        # Get cached redactor (or create if not cached)
+        logger.info(f"Getting {mode} redactor...")
+        redactor = get_redactor(mode)
         
-        logger.info(f"Redactor initialized: {type(redactor).__name__}")
+        if redactor is None:
+            logger.error(f"{mode} mode not available")
+            return jsonify({'error': f'{mode.upper()} mode not available. Please use another mode.'}), 400
+        
+        logger.info(f"Using redactor: {type(redactor).__name__}")
+        
+        # Reset redactor state before use (in case it's cached)
+        redactor.reset()
         
         # Redact document
         logger.info("Starting redaction...")
