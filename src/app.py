@@ -54,18 +54,27 @@ def get_redactor(mode):
     """Get or create a redactor instance (cached)"""
     if mode not in _redactors_cache:
         logger.info(f"Creating new {mode} redactor...")
-        if mode == "regex":
-            _redactors_cache[mode] = RegexRedactor()
-        elif mode == "ner":
-            if NER_AVAILABLE:
-                _redactors_cache[mode] = NERRedactor()
-            else:
-                return None
-        elif mode == "presidio":
-            _redactors_cache[mode] = PresidioRedactor()
-        elif mode == "hybrid":
-            _redactors_cache[mode] = HybridRedactor()
-        logger.info(f"✅ {mode} redactor created")
+        try:
+            if mode == "regex":
+                _redactors_cache[mode] = RegexRedactor()
+            elif mode == "ner":
+                if NER_AVAILABLE:
+                    _redactors_cache[mode] = NERRedactor()
+                else:
+                    logger.warning("NER not available")
+                    return None
+            elif mode == "presidio":
+                logger.info("Initializing Presidio (this may take a moment)...")
+                _redactors_cache[mode] = PresidioRedactor()
+            elif mode == "hybrid":
+                logger.info("Initializing Hybrid (this may take a moment)...")
+                _redactors_cache[mode] = HybridRedactor()
+            logger.info(f"✅ {mode} redactor created successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to create {mode} redactor: {e}")
+            logger.error(traceback.format_exc())
+            # Don't cache failed attempts
+            return None
     else:
         logger.info(f"Using cached {mode} redactor")
     
@@ -79,14 +88,16 @@ try:
 except Exception as e:
     logger.error(f"Failed to pre-load regex redactor: {e}")
 
-# Try to pre-load presidio (may be slow, do in background)
-try:
-    logger.info("Pre-loading presidio redactor...")
-    get_redactor("presidio")
-    logger.info("✅ Presidio redactor ready")
-except Exception as e:
-    logger.warning(f"Presidio pre-load failed: {e}")
-    logger.warning("Presidio will be loaded on first use")
+# Try to pre-load presidio (may be slow, skip for faster startup)
+# Presidio will be loaded on first use
+# try:
+#     logger.info("Pre-loading presidio redactor...")
+#     get_redactor("presidio")
+#     logger.info("✅ Presidio redactor ready")
+# except Exception as e:
+#     logger.warning(f"Presidio pre-load failed: {e}")
+#     logger.warning("Presidio will be loaded on first use")
+logger.info("Presidio will be loaded on first use (lazy loading enabled)")
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
@@ -139,13 +150,20 @@ def upload_file():
         redactor = get_redactor(mode)
         
         if redactor is None:
-            logger.error(f"{mode} mode not available")
-            return jsonify({'error': f'{mode.upper()} mode not available. Please use another mode.'}), 400
+            error_msg = f'{mode.upper()} mode is not available or failed to initialize. Please try another mode.'
+            logger.error(error_msg)
+            # Clean up uploaded file
+            if os.path.exists(input_path):
+                os.remove(input_path)
+            return jsonify({'error': error_msg}), 400
         
         logger.info(f"Using redactor: {type(redactor).__name__}")
         
         # Reset redactor state before use (in case it's cached)
-        redactor.reset()
+        try:
+            redactor.reset()
+        except Exception as reset_error:
+            logger.warning(f"Redactor reset failed: {reset_error}")
         
         # Redact document
         logger.info("Starting redaction...")
